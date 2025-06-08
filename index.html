@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Lever Tip Simulator</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 700px;
+        margin: 20px auto;
+        padding: 10px;
+      }
+      label {
+        display: block;
+        margin-top: 12px;
+      }
+      input[type="number"] {
+        width: 100px;
+        margin-left: 5px;
+      }
+      .output {
+        margin-top: 20px;
+        padding: 10px;
+        background: #f2f2f2;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Lever Tip Simulator</h1>
+
+    <label
+      >Ball Mass (grams): <input type="number" id="massBall" value="45"
+    /></label>
+    <label
+      >Ball Speed (m/s):
+      <input type="number" id="velocityBall" value="1.2" step="0.1"
+    /></label>
+    <label
+      >Short Arm Length (cm):
+      <input type="number" id="lengthShortArm" value="10"
+    /></label>
+    <label
+      >Short Arm Mass (grams):
+      <input type="number" id="massShortArm" value="100"
+    /></label>
+    <label
+      >Long Arm Length (cm): <input type="number" id="lengthLongArm" value="40"
+    /></label>
+    <label
+      >Long Arm Mass (grams): <input type="number" id="massLongArm" value="150"
+    /></label>
+    <label
+      >Counterweight Mass (grams):
+      <input type="number" id="massCounter" value="45"
+    /></label>
+
+    <button onclick="runSimulation()">Simulate</button>
+
+    <div class="output" id="results"></div>
+
+    <script>
+      function runSimulation() {
+        const g = 9.81;
+        const impactTime = 0.05; // seconds
+
+        // Get input & convert units
+        const massBall =
+          parseFloat(document.getElementById("massBall").value) / 1000;
+        const velocityBall = parseFloat(
+          document.getElementById("velocityBall").value
+        );
+        const lengthShortArm =
+          parseFloat(document.getElementById("lengthShortArm").value) / 100;
+        const massShortArm =
+          parseFloat(document.getElementById("massShortArm").value) / 1000;
+        const lengthLongArm =
+          parseFloat(document.getElementById("lengthLongArm").value) / 100;
+        const massLongArm =
+          parseFloat(document.getElementById("massLongArm").value) / 1000;
+        const massCounter =
+          parseFloat(document.getElementById("massCounter").value) / 1000;
+
+        // IMPULSE torque (ball hits long arm)
+        const impulseForce = (massBall * velocityBall) / impactTime;
+        const torqueImpulse = impulseForce * lengthLongArm;
+
+        // STATIC torques
+        const torqueCounter = massCounter * g * lengthShortArm;
+        const torqueShortArm = massShortArm * g * (lengthShortArm / 2);
+        const torqueLongArm = massLongArm * g * (lengthLongArm / 2);
+
+        const torqueResistance = torqueShortArm + torqueCounter - torqueLongArm;
+        const torqueNet = torqueImpulse - torqueResistance;
+
+        // Will it tip?
+        const willTip = torqueImpulse > torqueResistance;
+
+        // MOMENT OF INERTIA (simplified as two rods about pivot)
+        const I_short = (1 / 3) * massShortArm * Math.pow(lengthShortArm, 2);
+        const I_long = (1 / 3) * massLongArm * Math.pow(lengthLongArm, 2);
+        const I_total = I_short + I_long;
+
+        // ANGULAR ACCELERATION from impact
+        const alpha = torqueNet > 0 ? torqueNet / I_total : 0;
+        const omega = alpha * impactTime;
+        const omegaDeg = omega * (180 / Math.PI);
+
+        // Return torque
+        const torqueReturn = torqueShortArm + torqueCounter - torqueLongArm;
+        const alphaReturn = torqueReturn > 0 ? torqueReturn / I_total : 0;
+        const omegaReturn = alphaReturn * impactTime;
+        const omegaReturnDeg = omegaReturn * (180 / Math.PI);
+
+        // Ideal counterweight
+        const requiredCounterTorque = torqueLongArm;
+        const requiredCounterWeight =
+          (requiredCounterTorque - torqueShortArm) / (g * lengthShortArm);
+
+        // Output
+        let results = `
+    <strong>${
+      willTip
+        ? "✅ Ball impact WILL tip the lever."
+        : "❌ Ball impact NOT enough to tip lever."
+    }</strong><br>
+    🎯 Ideal counterweight: ${(requiredCounterWeight * 1000).toFixed(
+      2
+    )} grams<br><br>
+    🌀 Angular velocity after ball hit: ${omega.toFixed(
+      2
+    )} rad/s (${omegaDeg.toFixed(1)}°/s)<br>
+    🔁 Angular velocity of reset: ${omegaReturn.toFixed(
+      2
+    )} rad/s (${omegaReturnDeg.toFixed(1)}°/s)<br>
+  `;
+
+        if (omegaReturn < 0.5) {
+          results +=
+            "🪀 Light spring or small gravity assist will reset arm smoothly.";
+        } else {
+          results +=
+            "💪 Strong spring or counterbalance needed for fast reset.";
+        }
+
+        document.getElementById("results").innerHTML = results;
+      }
+    </script>
+  </body>
+</html>
